@@ -15,6 +15,20 @@ export default function KanbanCard({ contact, index, attrDisplayNames = {} }) {
   const thumbnail = contact.thumbnail || contact.avatar_url || contact.profile_picture_url;
   const phone = contact.phone_number || contact.telefone || contact.mobile;
 
+  // 👉 Função para abrir o contato no Chatwoot
+  const openInChatwoot = () => {
+    const base = window._env_?.REACT_APP_CHATWOOT_URL || process.env.REACT_APP_CHATWOOT_URL;
+    const acc = window._env_?.REACT_APP_CHATWOOT_ACCOUNT_ID || process.env.REACT_APP_CHATWOOT_ACCOUNT_ID;
+
+    if (!base || !acc || !contact.id) {
+      console.warn("Dados insuficientes para abrir Chatwoot:", { base, acc, id: contact.id });
+      return;
+    }
+
+    // Abre em nova aba o contato correspondente
+    window.open(`${base}/app/accounts/${acc}/contacts/${contact.id}`, "_blank");
+  };
+
   return (
     <Draggable draggableId={String(contact.id)} index={index}>
       {(provided, snapshot) => (
@@ -22,9 +36,11 @@ export default function KanbanCard({ contact, index, attrDisplayNames = {} }) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-gray-100 p-3 rounded shadow cursor-pointer select-none ${
+          onClick={openInChatwoot} // 👈 adiciona clique
+          className={`bg-gray-100 p-3 rounded shadow cursor-pointer select-none transition hover:bg-blue-50 ${
             snapshot.isDragging ? 'bg-blue-200 shadow-lg' : ''
           }`}
+          title="Abrir contato no Chatwoot"
         >
           <div className="flex items-center gap-2">
             {thumbnail && (
