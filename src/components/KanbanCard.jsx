@@ -3,30 +3,44 @@ import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import CustomAttributesList from './CustomAttributesList';
 
-/**
- * @param {{
- *  contact: { id: number | string, name: string, email?: string },
- *  index: number,
- *  attrDisplayNames?: Record<string, string>
- * }} props
- */
 export default function KanbanCard({ contact, index, attrDisplayNames = {} }) {
-  // Suporte para thumbnail e telefone
   const thumbnail = contact.thumbnail || contact.avatar_url || contact.profile_picture_url;
   const phone = contact.phone_number || contact.telefone || contact.mobile;
 
-  // 👉 Função para abrir o contato no Chatwoot
-  const openInChatwoot = () => {
+  const openConversation = async () => {
     const base = window._env_?.REACT_APP_CHATWOOT_URL || process.env.REACT_APP_CHATWOOT_URL;
     const acc = window._env_?.REACT_APP_CHATWOOT_ACCOUNT_ID || process.env.REACT_APP_CHATWOOT_ACCOUNT_ID;
+    const token = window._env_?.REACT_APP_CHATWOOT_TOKEN || process.env.REACT_APP_CHATWOOT_TOKEN;
 
     if (!base || !acc || !contact.id) {
-      console.warn("Dados insuficientes para abrir Chatwoot:", { base, acc, id: contact.id });
+      console.warn('Dados insuficientes para abrir Chatwoot:', { base, acc, id: contact.id });
       return;
     }
 
-    // Abre em nova aba o contato correspondente
-    window.open(`${base}/app/accounts/${acc}/contacts/${contact.id}`, "_blank");
+    try {
+      // Se já existe conversation_id, abre direto
+      if (contact.conversation_id) {
+        window.open(`${base}/app/accounts/${acc}/conversations/${contact.conversation_id}`, '_blank');
+        return;
+      }
+
+      // Busca a primeira conversa associada ao contato
+      const url = `${base}/api/v1/accounts/${acc}/contacts/${contact.id}/conversations`;
+      const res = await fetch(url, {
+        headers: { api_access_token: token },
+      });
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        const convoId = data[0].id;
+        window.open(`${base}/app/accounts/${acc}/conversations/${convoId}`, '_blank');
+      } else {
+        alert('Nenhuma conversa encontrada para este contato.');
+      }
+    } catch (err) {
+      console.error('Erro ao buscar conversa:', err);
+      alert('Erro ao abrir conversa no Chatwoot.');
+    }
   };
 
   return (
@@ -36,11 +50,11 @@ export default function KanbanCard({ contact, index, attrDisplayNames = {} }) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          onClick={openInChatwoot} // 👈 adiciona clique
+          onClick={openConversation}
           className={`bg-gray-100 p-3 rounded shadow cursor-pointer select-none transition hover:bg-blue-50 ${
             snapshot.isDragging ? 'bg-blue-200 shadow-lg' : ''
           }`}
-          title="Abrir contato no Chatwoot"
+          title="Abrir conversa no Chatwoot"
         >
           <div className="flex items-center gap-2">
             {thumbnail && (
@@ -60,7 +74,6 @@ export default function KanbanCard({ contact, index, attrDisplayNames = {} }) {
             {contact.email && phone && <span className="mx-2">·</span>}
             {contact.email && <span>{contact.email}</span>}
           </div>
-          {/* Mostra atributos customizados usando componente separado */}
           {contact.custom_attributes && (
             <CustomAttributesList attributes={contact.custom_attributes} displayNames={attrDisplayNames} />
           )}
